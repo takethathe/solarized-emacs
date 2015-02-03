@@ -109,6 +109,56 @@ Also affects `linum-mode' background."
   :type 'boolean
   :group 'solarized)
 
+(defvar which-flet
+  (if (version< emacs-version "24.3")
+      (fset 'which-flet 'flet)
+    (fset 'which-flet 'cl-flet))
+  "This variable will store either flet or cl-flet depending on the Emacs
+version. flet was deprecated in in 24.3")
+
+;; FIXME: The Generic RGB colors will actually vary from device to device, but
+;; hopefully these are closer to the intended colors than the sRGB values
+;; that Emacs seems to dislike
+(defvar solarized-colors ; ANSI(Solarized terminal)
+  ;; name sRGB Gen RGB 256 16 8
+  '((base03 "#002b36" "#042028" "#1c1c1c" "brightblack" "black")
+    (base02 "#073642" "#0a2832" "#262626" "black" "black")
+    (base01 "#586e75" "#465a61" "#585858" "brightgreen" "green")
+    (base00 "#657b83" "#52676f" "#626262" "brightyellow" "yellow")
+    (base0 "#839496" "#708183" "#808080" "brightblue" "blue")
+    (base1 "#93a1a1" "#81908f" "#8a8a8a" "brightcyan" "cyan")
+    (base2 "#eee8d5" "#e9e2cb" "#e4e4e4" "white" "white")
+    (base3 "#fdf6e3" "#fcf4dc" "#ffffd7" "brightwhite" "white")
+    (yellow "#b58900" "#a57705" "#af8700" "yellow" "yellow")
+    (orange "#cb4b16" "#bd3612" "#d75f00" "brightred" "red")
+    (red "#dc322f" "#c60007" "#d70000" "red" "red")
+    (magenta "#d33682" "#c61b6e" "#af005f" "magenta" "magenta")
+    (violet "#6c71c4" "#5859b7" "#5f5faf" "brightmagenta" "magenta")
+    (blue "#268bd2" "#2075c7" "#268bd2" "blue" "blue")
+    (cyan "#2aa198" "#259185" "#00afaf" "cyan" "cyan")
+    (green "#859900" "#728a05" "#5f8700" "green" "green")
+    (l-line "#cccec4" "#cccec4" "#dadada" "black" "black")
+    (line "#284b54" "#284b54" "#3a3a3a" "black" "black")
+    (orange-d "#8B2C02" "#8B2C02" "#af5f00" "red" "red")
+    (orange-l "#F2804F" "#F2804F" "#F2804F" "brightred" "red")
+    (violet-d "#3F4D91" "#3F4D91" "#5f5f87" "brightmagenta" "magenta")
+    (violet-l "#9EA0E5" "#9EA0E5" "#afafff" "brightmagenta" "magenta"))
+  "This is a table of all the colors used by the Solarized color theme. Each
+column is a different set, one of which will be chosen based on term
+capabilities, etc.")
+
+(defcustom solarized-broken-srgb (if (and (eq system-type 'darwin)
+                                          (eq window-system 'ns))
+                                     (not (and (boundp 'ns-use-srgb-colorspace)
+                                               ns-use-srgb-colorspace))
+                                   nil)
+  "Emacs bug #8402 results in incorrect color handling on Macs. If this is t
+\(the default on Macs), Solarized works around it with alternative colors.
+However, these colors are not totally portable, so you may be able to edit
+the \"Gen RGB\" column in solarized-definitions.el to improve them further."
+  :type 'boolean
+  :group 'solarized)
+
 ;;; Utilities
 
 (defun solarized-color-name-to-rgb (color &optional frame)
@@ -153,44 +203,53 @@ Alpha should be a float between 0 and 1."
 
 When optional argument CHILDTHEME function is supplied it's invoked to further
 customize the resulting theme."
+  ;; Define a find-color method
+  (which-flet ((find-color (name)
+                           (let ((index (if window-system
+                                            (if solarized-broken-srgb 2 1)
+                                          (case (display-color-cells)
+                                            (16 4)
+                                            (8 5)
+                                            (otherwise 3)))))
+                             (nth index (assoc name solarized-colors)))))
 ;;; Color palette
   (let* ((class '((class color) (min-colors 89)))
-         (s-base03    "#002b36")
-         (s-base02    "#073642")
+         (s-base03    (find-color 'base03))
+         (s-base02    (find-color 'base02))
          ;; emphasized content
-         (s-base01    "#586e75")
+         (s-base01    (find-color 'base01))
          ;; primary content
-         (s-base00    "#657b83")
-         (s-base0     "#839496")
+         (s-base00    (find-color 'base00))
+         (s-base0     (find-color 'base0))
          ;; comments
-         (s-base1     "#93a1a1")
+         (s-base1     (find-color 'base1))
          ;; background highlight light
-         (s-base2     "#eee8d5")
+         (s-base2     (find-color 'base2))
          ;; background light
-         (s-base3     "#fdf6e3")
+         (s-base3     (find-color 'base3))
 
          ;; Solarized accented colors
-         (yellow    "#b58900")
-         (orange    "#cb4b16")
-         (red       "#dc322f")
-         (magenta   "#d33682")
-         (violet    "#6c71c4")
-         (blue      "#268bd2")
-         (cyan      "#2aa198")
-         (green     "#859900")
+         (yellow    (find-color 'yellow))
+         (orange    (find-color 'orange))
+         (red       (find-color 'red))
+         (magenta   (find-color 'magenta))
+         (violet    (find-color 'violet))
+         (blue      (find-color 'blue))
+         (cyan      (find-color 'cyan))
+         (green     (find-color 'green))
 
          ;; Darker and lighter accented colors
          ;; Only use these in exceptional circumstances!
          (yellow-d  "#7B6000")
          (yellow-l  "#DEB542")
-         (orange-d  "#8B2C02")
+         (orange-d  (find-color 'orange-d))
          (orange-l  "#F2804F")
          (red-d     "#990A1B")
          (red-l     "#FF6E64")
          (magenta-d "#93115C")
          (magenta-l "#F771AC")
-         (violet-d  "#3F4D91")
-         (violet-l  "#9EA0E5")
+         (violet-d  (find-color 'violet-d))
+         (violet-l  (find-color 'violet-l))
          (blue-d    "#00629D")
          (blue-l    "#69B7F0")
          (cyan-d    "#00736F")
@@ -224,7 +283,7 @@ customize the resulting theme."
          ;;
          ;; NOTE only use this for very thin lines that are hard to see using base02, in low
          ;; color displayes base02 might be used instead
-         (s-line (if (eq variant 'light) "#cccec4" "#284b54"))
+         (s-line (if (eq variant 'light) (find-color 'l-line) (find-color 'line)))
 
          ;; Light/Dark adaptive higher/lower contrast accented colors
          ;;
@@ -2047,7 +2106,7 @@ customize the resulting theme."
 ;;; Setup End
      (when childtheme
        (funcall childtheme))
-     ) ; END custom-theme-set-variables
+     )) ; END custom-theme-set-variables
   )    ; END defun create-solarized-theme
 
 ;;; Footer
